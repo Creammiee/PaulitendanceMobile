@@ -1,7 +1,9 @@
 import { SCHOOL_LOCATION } from '@/lib/location';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker as RNMarker } from 'react-native-maps';
+
+export const MapMarker = RNMarker;
 
 interface SchoolMapProps {
     children?: React.ReactNode;
@@ -20,7 +22,7 @@ export default function SchoolMap({ children }: SchoolMapProps) {
                 showsUserLocation
                 showsMyLocationButton
             >
-                <Marker
+                <MapMarker
                     coordinate={SCHOOL_LOCATION}
                     title="Paulitendance School"
                     description="School Location"

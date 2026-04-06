@@ -105,7 +105,6 @@ export default function SignUpScreen() {
                         parentId: user.uid
                     });
                     // Also update in 'students' collection if we use it
-                    const studentRefLegacy = doc(db, 'students', linkedStudentId);
                     // Check if exists before update to be safe, or just update users
                     // We'll trust 'users' collection is primary source of truth now.
                 }

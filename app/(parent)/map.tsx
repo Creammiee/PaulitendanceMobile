@@ -3,8 +3,7 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Marker } from 'react-native-maps';
-import SchoolMap from '../../components/SchoolMap';
+import SchoolMap, { MapMarker } from '../../components/SchoolMap';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../ctx/AuthContext';
 import { firebaseApp } from '../../lib/firebaseConfig';
@@ -62,7 +61,7 @@ export default function ParentMap() {
 
             <SchoolMap>
                 {childLocation && (
-                    <Marker
+                    <MapMarker
                         coordinate={{
                             latitude: childLocation.latitude,
                             longitude: childLocation.longitude,

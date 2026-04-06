@@ -3,8 +3,7 @@ import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Marker } from 'react-native-maps';
-import SchoolMap from '../../components/SchoolMap';
+import SchoolMap, { MapMarker } from '../../components/SchoolMap';
 import { Colors } from '../../constants/Colors';
 import { useAuth } from '../../ctx/AuthContext';
 import { requestLocationPermissions, updateStudentLocation } from '../../lib/location';
@@ -57,7 +56,7 @@ export default function StudentMap() {
 
             <SchoolMap>
                 {location && (
-                    <Marker
+                    <MapMarker
                         coordinate={{
                             latitude: location.latitude,
                             longitude: location.longitude,
