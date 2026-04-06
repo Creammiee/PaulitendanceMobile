@@ -4,7 +4,8 @@ import { doc, getDoc, getFirestore } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SchoolMap, { MapMarker } from '../../components/SchoolMap';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { useAuth } from '../../ctx/AuthContext';
 import { firebaseApp } from '../../lib/firebaseConfig';
 import { LocationCoords, subscribeToStudentLocation } from '../../lib/location';
@@ -12,6 +13,9 @@ import { LocationCoords, subscribeToStudentLocation } from '../../lib/location';
 const db = getFirestore(firebaseApp);
 
 export default function ParentMap() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
     const { user } = useAuth();
     const router = useRouter();
     const [childLocation, setChildLocation] = useState<LocationCoords | null>(null);
@@ -75,7 +79,7 @@ export default function ParentMap() {
 
             {loading && (
                 <View style={styles.loadingOverlay}>
-                    <ActivityIndicator size="large" color={Colors.solidBlue} />
+                    <ActivityIndicator size="large" color={theme.solidBlue} />
                     <Text style={{ color: 'white', marginTop: 10 }}>Locating child...</Text>
                 </View>
             )}
@@ -95,7 +99,8 @@ export default function ParentMap() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
     },
@@ -121,14 +126,15 @@ const styles = StyleSheet.create({
         bottom: 30,
         left: 20,
         right: 20,
-        backgroundColor: Colors.white,
+        backgroundColor: theme.white,
         padding: 15,
         borderRadius: 10,
         alignItems: 'center',
         elevation: 5,
     },
     infoText: {
-        color: Colors.nightTime,
+        color: theme.nightTime,
         fontWeight: 'bold',
     }
-});
+    });
+}

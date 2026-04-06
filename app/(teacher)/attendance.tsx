@@ -3,14 +3,18 @@ import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, setDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { useAuth } from '../../ctx/AuthContext';
 import { db } from '../../lib/firebaseConfig';
 import { Attendance, UserProfile } from '../../types/db';
 
 export default function TeacherAttendanceScreen() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
     const router = useRouter();
-    const { user } = useAuth(); // We might need userProfile here if user doesn't have role
+    const { user } = useAuth();
     const [students, setStudents] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [marking, setMarking] = useState<string | null>(null);
@@ -21,7 +25,6 @@ export default function TeacherAttendanceScreen() {
 
     const loadStudents = async () => {
         try {
-            // Get Teacher's Profile to find their section
             if (!user) return;
             const teacherRef = doc(db, 'users', user.uid);
             const teacherSnap = await getDoc(teacherRef);
@@ -35,12 +38,10 @@ export default function TeacherAttendanceScreen() {
             const teacherSection = teacherData.section;
 
             if (!teacherSection) {
-                // If no section assigned, maybe show none? user said "specific section"
                 setStudents([]);
                 return;
             }
 
-            // Query students with the same section
             const q = query(
                 collection(db, 'users'),
                 where('role', '==', 'student'),
@@ -79,7 +80,6 @@ export default function TeacherAttendanceScreen() {
 
             await setDoc(attendanceRef, attendanceData);
 
-            // If Late, automatically create a Promissory Letter
             if (status === 'late') {
                 const letterId = `promissory_${studentId}_${todayStr}`;
                 const letterRef = doc(db, 'letters', letterId);
@@ -109,29 +109,35 @@ export default function TeacherAttendanceScreen() {
     const renderStudentItem = ({ item }: { item: UserProfile }) => (
         <View style={styles.studentCard}>
             <View style={styles.studentInfo}>
-                <Ionicons name="person-circle-outline" size={40} color={Colors.lilacBlue} />
+                <Ionicons name="person-circle-outline" size={40} color={theme.lilacBlue} />
                 <View style={styles.textContainer}>
                     <Text style={styles.studentName}>{item.fullName}</Text>
                     <Text style={styles.studentEmail}>{item.email}</Text>
+                    <View style={styles.credentialRow}>
+                        <Text style={styles.userIdText}>ID: {item.uid.substring(0, 8).toUpperCase()}</Text>
+                        {item.bindingKey && (
+                            <Text style={styles.bindingKeyText}>Key: {item.bindingKey}</Text>
+                        )}
+                    </View>
                 </View>
             </View>
             <View style={styles.actionButtons}>
                 <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: Colors.dive }]}
+                    style={[styles.actionBtn, { backgroundColor: theme.dive }]}
                     onPress={() => markAttendance(item.uid, 'present')}
                     disabled={marking === item.uid}
                 >
                     <Text style={styles.btnText}>P</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: '#FFA500' }]} // Orange for Late
+                    style={[styles.actionBtn, { backgroundColor: '#FFA500' }]}
                     onPress={() => markAttendance(item.uid, 'late')}
                     disabled={marking === item.uid}
                 >
                     <Text style={styles.btnText}>L</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: Colors.error }]}
+                    style={[styles.actionBtn, { backgroundColor: theme.error }]}
                     onPress={() => markAttendance(item.uid, 'absent')}
                     disabled={marking === item.uid}
                 >
@@ -144,7 +150,7 @@ export default function TeacherAttendanceScreen() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.lilacBlue} />
+                <ActivityIndicator size="large" color={theme.lilacBlue} />
             </View>
         );
     }
@@ -153,7 +159,6 @@ export default function TeacherAttendanceScreen() {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Class Attendance</Text>
-                {/* Link to Letters Review if we want */}
             </View>
 
             <FlatList
@@ -167,15 +172,16 @@ export default function TeacherAttendanceScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.nightTime,
         paddingTop: 60,
     },
     loadingContainer: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.nightTime,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -186,14 +192,14 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.white,
     },
     listContent: {
         paddingHorizontal: 20,
         paddingBottom: 40,
     },
     studentCard: {
-        backgroundColor: Colors.deepSea,
+        backgroundColor: theme.deepSea,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
@@ -201,7 +207,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
     },
     studentInfo: {
         flexDirection: 'row',
@@ -212,12 +218,12 @@ const styles = StyleSheet.create({
         marginLeft: 12,
     },
     studentName: {
-        color: Colors.white,
+        color: theme.white,
         fontSize: 16,
         fontWeight: 'bold',
     },
     studentEmail: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         fontSize: 12,
     },
     actionButtons: {
@@ -232,13 +238,30 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     btnText: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: 'bold',
         fontSize: 14,
     },
     emptyText: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         textAlign: 'center',
         marginTop: 40,
-    }
-});
+    },
+    credentialRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 2,
+    },
+    userIdText: {
+        color: theme.lilacBlue,
+        fontSize: 10,
+        fontWeight: '500',
+    },
+    bindingKeyText: {
+        color: theme.solidBlue,
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    });
+}

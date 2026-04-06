@@ -14,6 +14,7 @@ export interface UserProfile {
     teacherId?: string; // For students
     section?: string; // For students and teachers
     bindingKey?: string; // For students (unique key for parents to link)
+    profilePicture?: string; // URL or Base64 for the avatar
 }
 
 export type AttendanceStatus = 'present' | 'late' | 'absent';

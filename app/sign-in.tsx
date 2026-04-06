@@ -14,10 +14,14 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { Colors } from "../constants/Colors";
+import { useAppTheme } from '../hooks/useAppTheme';
+import { ColorTheme } from '../constants/Colors';
 import { useAuth } from "../ctx/AuthContext";
 
 export default function SignIn() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -61,7 +65,7 @@ export default function SignIn() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <StatusBar style="light" />
+      <StatusBar style="auto" />
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
           <Text style={styles.title}>Welcome Back</Text>
@@ -77,13 +81,13 @@ export default function SignIn() {
               <Ionicons
                 name="mail-outline"
                 size={20}
-                color={Colors.lilacBlue}
+                color={theme.lilacBlue}
                 style={styles.icon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="you@example.com"
-                placeholderTextColor={Colors.lilacBlue + "80"} // 50% opacity
+                placeholderTextColor={theme.lilacBlue + "80"} // 50% opacity
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -98,13 +102,13 @@ export default function SignIn() {
               <Ionicons
                 name="lock-closed-outline"
                 size={20}
-                color={Colors.lilacBlue}
+                color={theme.lilacBlue}
                 style={styles.icon}
               />
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
-                placeholderTextColor={Colors.lilacBlue + "80"}
+                placeholderTextColor={theme.lilacBlue + "80"}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -122,7 +126,7 @@ export default function SignIn() {
             disabled={isSigningIn}
           >
             {isSigningIn ? (
-              <ActivityIndicator color={Colors.white} />
+              <ActivityIndicator color={theme.white} />
             ) : (
               <Text style={styles.buttonText}>Sign In</Text>
             )}
@@ -142,10 +146,11 @@ export default function SignIn() {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.nightTime,
+    backgroundColor: theme.nightTime,
   },
   scrollContent: {
     flexGrow: 1,
@@ -159,13 +164,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "bold",
-    color: Colors.white,
+    color: theme.white,
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
     fontSize: 16,
-    color: Colors.dive,
+    color: theme.dive,
     textAlign: "center",
   },
   formContainer: {
@@ -176,17 +181,17 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     marginBottom: 8,
     fontWeight: "600",
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: Colors.deepSea,
+    backgroundColor: theme.deepSea,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
     height: 56,
     paddingHorizontal: 16,
   },
@@ -195,7 +200,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: Colors.white,
+    color: theme.white,
     fontSize: 16,
   },
   forgotPassword: {
@@ -203,24 +208,24 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   forgotPasswordText: {
-    color: Colors.dive,
+    color: theme.dive,
     fontSize: 14,
     fontWeight: "600",
   },
   button: {
-    backgroundColor: Colors.solidBlue,
+    backgroundColor: theme.solidBlue,
     height: 56,
     borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: Colors.solidBlue,
+    shadowColor: theme.solidBlue,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   buttonText: {
-    color: Colors.white,
+    color: theme.white,
     fontSize: 18,
     fontWeight: "bold",
   },
@@ -230,12 +235,13 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   footerText: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontSize: 14,
   },
   footerLink: {
-    color: Colors.dive,
+    color: theme.dive,
     fontSize: 14,
     fontWeight: "bold",
   },
-});
+    });
+}

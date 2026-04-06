@@ -22,12 +22,16 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { Colors } from "../../constants/Colors";
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { useAuth } from "../../ctx/AuthContext";
 import { db } from "../../lib/firebaseConfig";
 import { Attendance, Letter, UserProfile } from "../../types/db";
 
 export default function ChildStatusScreen() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -50,20 +54,16 @@ export default function ChildStatusScreen() {
     if (!user) return;
     try {
       // 1. Get Parent Profile to find Student ID
-      const parentRef = doc(db, "users", user.uid); // Try users collection first? Or parents?
-      // AuthContext says parents are in 'parents' collection usually.
-      // But our seed script put them in 'users'.
-      // Let's try 'users' first as per my seed script.
+      const parentRef = doc(db, "users", user.uid);
       let parentSnap = await getDoc(parentRef);
 
-      // If not in users, check parents (legacy/other flow)
       if (!parentSnap.exists()) {
         const pRef = doc(db, "parents", user.uid);
         parentSnap = await getDoc(pRef);
       }
 
       if (!parentSnap.exists()) {
-        console.error("Parent profile not found found.");
+        console.error("Parent profile not found.");
         setLoading(false);
         return;
       }
@@ -75,7 +75,7 @@ export default function ChildStatusScreen() {
         return;
       }
 
-      const studentId = parentData.studentIds[0]; // Take first student
+      const studentId = parentData.studentIds[0];
 
       // 2. Get Student Profile
       const studentSnap = await getDoc(doc(db, "users", studentId));
@@ -92,8 +92,7 @@ export default function ChildStatusScreen() {
         setTodayAttendance(attendanceSnap.data() as Attendance);
       }
 
-      // 4. Get Letters (Pending Promissory OR any recent letters)
-      // Let's fetch all relevant letters for this student
+      // 4. Get Letters
       const q = query(
         collection(db, "letters"),
         where("studentId", "==", studentId),
@@ -102,7 +101,6 @@ export default function ChildStatusScreen() {
       const lettersList: Letter[] = [];
       lettersSnap.forEach((d) => lettersList.push(d.data() as Letter));
 
-      // Sort by date desc
       lettersList.sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -120,8 +118,6 @@ export default function ChildStatusScreen() {
     setProcessing(letter.id);
     try {
       const letterRef = doc(db, "letters", letter.id);
-
-      // Check if teacher verified already?
       let newStatus = letter.status;
       if (letter.teacherApproved) {
         newStatus = "approved";
@@ -156,7 +152,7 @@ export default function ChildStatusScreen() {
         id: letterId,
         type: "excuse",
         studentId: student.uid,
-        date: todayStr, // Applying for today? Or should we pick date? Assuming today for MVP.
+        date: todayStr,
         reason: excuseReason,
         status: "pending",
         teacherApproved: false,
@@ -179,7 +175,7 @@ export default function ChildStatusScreen() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.lilacBlue} />
+        <ActivityIndicator size="large" color={theme.lilacBlue} />
       </View>
     );
   }
@@ -191,7 +187,7 @@ export default function ChildStatusScreen() {
           onPress={() => router.back()}
           style={styles.backButton}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          <Ionicons name="arrow-back" size={24} color={theme.white} />
         </TouchableOpacity>
         <Text style={styles.title}>Child Status</Text>
       </View>
@@ -205,7 +201,7 @@ export default function ChildStatusScreen() {
 
       {/* Attendance Status */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Today\u2019s Attendance</Text>
+        <Text style={styles.sectionTitle}>Today's Attendance</Text>
         <View
           style={[
             styles.statusCard,
@@ -235,14 +231,24 @@ export default function ChildStatusScreen() {
         </View>
 
         {/* Actions based on status */}
-        {todayAttendance?.status === "absent" && (
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => setShowExcuseModal(true)}
-          >
-            <Text style={styles.actionButtonText}>Submit Excuse Letter</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.actionRow}>
+            {todayAttendance?.status === "absent" && (
+            <TouchableOpacity
+                style={[styles.actionButton, { flex: 1 }]}
+                onPress={() => setShowExcuseModal(true)}
+            >
+                <Text style={styles.actionButtonText}>Submit Excuse Letter</Text>
+            </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity
+                style={[styles.actionButton, { flex: 1, backgroundColor: theme.deepSea, borderWidth: 1, borderColor: theme.sailingBlue, marginLeft: todayAttendance?.status === "absent" ? 10 : 0 }]}
+                onPress={() => router.push('/(parent)/history' as any)}
+            >
+                <Ionicons name="calendar-outline" size={18} color={theme.lilacBlue} style={{ marginRight: 8 }} />
+                <Text style={[styles.actionButtonText, { color: theme.lilacBlue }]}>View History</Text>
+            </TouchableOpacity>
+        </View>
       </View>
 
       {/* Letters Section */}
@@ -272,7 +278,7 @@ export default function ChildStatusScreen() {
               </View>
               <Text style={styles.letterDate}>{letter.date}</Text>
               <Text style={styles.letterReason}>
-                \u201c{letter.reason}\u201d
+                "{letter.reason}"
               </Text>
 
               {/* Promissory Approval */}
@@ -344,14 +350,15 @@ export default function ChildStatusScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.nightTime,
+    backgroundColor: theme.nightTime,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: Colors.nightTime,
+    backgroundColor: theme.nightTime,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -370,7 +377,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: Colors.white,
+    color: theme.white,
   },
   studentHeader: {
     marginBottom: 30,
@@ -378,10 +385,10 @@ const styles = StyleSheet.create({
   studentName: {
     fontSize: 28,
     fontWeight: "bold",
-    color: Colors.dive,
+    color: theme.dive,
   },
   studentRole: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontSize: 16,
   },
   section: {
@@ -390,7 +397,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.white,
+    color: theme.white,
     marginBottom: 12,
   },
   statusCard: {
@@ -401,43 +408,49 @@ const styles = StyleSheet.create({
   },
   statusGreen: { backgroundColor: "#4CAF50" },
   statusOrange: { backgroundColor: "#FFA500" },
-  statusRed: { backgroundColor: Colors.error },
+  statusRed: { backgroundColor: theme.error },
   statusGray: {
-    backgroundColor: Colors.deepSea,
+    backgroundColor: theme.deepSea,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
   },
 
   statusText: {
     fontSize: 24,
     fontWeight: "bold",
-    color: Colors.white,
+    color: theme.white,
     marginBottom: 4,
   },
   timeText: {
     color: "rgba(255,255,255,0.9)",
     fontSize: 14,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   actionButton: {
-    backgroundColor: Colors.solidBlue,
+    backgroundColor: theme.solidBlue,
     padding: 16,
     borderRadius: 12,
     alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   actionButtonText: {
-    color: Colors.white,
+    color: theme.white,
     fontWeight: "bold",
-    fontSize: 16,
+    fontSize: 14,
   },
 
   // Letter Styles
   letterCard: {
-    backgroundColor: Colors.deepSea,
+    backgroundColor: theme.deepSea,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
   },
   letterHeader: {
     flexDirection: "row",
@@ -445,22 +458,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   letterType: {
-    color: Colors.dive,
+    color: theme.dive,
     fontWeight: "bold",
   },
   letterStatus: {
     fontWeight: "bold",
   },
   textGreen: { color: "#4CAF50" },
-  textRed: { color: Colors.error },
+  textRed: { color: theme.error },
   textOrange: { color: "#FFA500" },
   letterDate: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontSize: 12,
     marginBottom: 8,
   },
   letterReason: {
-    color: Colors.white,
+    color: theme.white,
     fontSize: 14,
     fontStyle: "italic",
     marginBottom: 12,
@@ -471,17 +484,17 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   approvalText: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     marginBottom: 8,
   },
   approveButton: {
-    backgroundColor: Colors.solidBlue,
+    backgroundColor: theme.solidBlue,
     padding: 10,
     borderRadius: 8,
     alignItems: "center",
   },
   approveButtonText: {
-    color: Colors.white,
+    color: theme.white,
     fontWeight: "bold",
   },
   approvedText: {
@@ -490,7 +503,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   emptyText: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontStyle: "italic",
   },
 
@@ -502,27 +515,27 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContent: {
-    backgroundColor: Colors.nightTime,
+    backgroundColor: theme.nightTime,
     borderRadius: 16,
     padding: 24,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
-    color: Colors.white,
+    color: theme.white,
     marginBottom: 8,
   },
   modalSubtitle: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     marginBottom: 16,
   },
   textArea: {
-    backgroundColor: Colors.deepSea,
-    color: Colors.white,
+    backgroundColor: theme.deepSea,
+    color: theme.white,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
     borderRadius: 8,
     padding: 12,
     height: 100, // multiline
@@ -543,10 +556,11 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   submitBtn: {
-    backgroundColor: Colors.solidBlue,
+    backgroundColor: theme.solidBlue,
   },
   modalBtnText: {
-    color: Colors.white,
+    color: theme.white,
     fontWeight: "bold",
   },
-});
+    });
+}

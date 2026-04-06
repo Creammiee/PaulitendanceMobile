@@ -8,6 +8,7 @@ import {
     query,
     updateDoc,
     where,
+    orderBy,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
@@ -28,28 +29,23 @@ interface LetterWithStudent extends Letter {
   studentName: string;
 }
 
-export default function TeacherLettersScreen() {
+export default function AdminLettersScreen() {
   const theme = useAppTheme();
   const styles = getStyles(theme);
 
   const [letters, setLetters] = useState<LetterWithStudent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [processing, setProcessing] = useState<string | null>(null);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   useEffect(() => {
-    // 2. Listen for Pending Letters
-    const lettersQuery = query(
-        collection(db, 'letters'), 
-        where('status', '==', 'pending')
-    );
+    const lettersQuery = query(collection(db, 'letters'));
     
     const unsubscribe = onSnapshot(lettersQuery, async (snapshot) => {
         const lettersList: LetterWithStudent[] = [];
         for (const docSnap of snapshot.docs) {
             const letter = docSnap.data() as Letter;
             
-            // For MVP, since we don't have many users, we fetch student name.
-            // In a larger app, we'd store the student name in the letter or use a join.
+            // Fetch student name
             const studentRef = doc(db, "users", letter.studentId);
             const studentSnap = await getDoc(studentRef);
             const studentName = studentSnap.exists()
@@ -68,43 +64,18 @@ export default function TeacherLettersScreen() {
     return () => unsubscribe();
   }, []);
 
-  const handleAction = async (letter: Letter, action: "approve" | "reject") => {
-    setProcessing(letter.id);
-    try {
-      const letterRef = doc(db, "letters", letter.id);
-
-      if (action === "approve") {
-        let updates: any = {
-          teacherApproved: true,
-        };
-
-        if (letter.type === "excuse") {
-          updates.status = "approved";
-        } else if (letter.type === "promissory") {
-          if (letter.parentApproved) {
-            updates.status = "approved";
-          }
-        }
-
-        await updateDoc(letterRef, updates);
-        Alert.alert("Success", "Letter approved.");
-      } else {
-        await updateDoc(letterRef, { status: "rejected" });
-        Alert.alert("Rejected", "Letter rejected.");
-      }
-    } catch (error) {
-      console.error("Error processing letter:", error);
-      Alert.alert("Error", "Failed to process letter.");
-    } finally {
-      setProcessing(null);
-    }
-  };
+  const filteredLetters = letters.filter(l => filter === 'all' || l.status === filter);
 
   const renderLetterItem = ({ item }: { item: LetterWithStudent }) => (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <View style={[styles.badgeContainer, { backgroundColor: item.type === 'excuse' ? theme.dive : theme.solidBlue }]}>
+        <View style={[styles.typeBadge, { backgroundColor: item.type === 'excuse' ? theme.dive : theme.solidBlue }]}>
           <Text style={styles.badgeText}>{item.type.toUpperCase()}</Text>
+        </View>
+        <View style={[styles.statusBadge, { 
+            backgroundColor: item.status === 'approved' ? '#4CAF50' : item.status === 'rejected' ? theme.error : '#FFA500' 
+        }]}>
+          <Text style={styles.badgeText}>{item.status.toUpperCase()}</Text>
         </View>
         <Text style={styles.date}>{item.date}</Text>
       </View>
@@ -116,40 +87,11 @@ export default function TeacherLettersScreen() {
         <Text style={styles.reason}>"{item.reason}"</Text>
       </View>
 
-      {item.type === "promissory" && (
-        <View style={styles.statusRow}>
-          <View style={styles.approvalBadge}>
-            <Ionicons 
-                name={item.parentApproved ? "checkmark-circle" : "time-outline"} 
-                size={14} 
-                color={item.parentApproved ? "#4CAF50" : "#FFA500"} 
-            />
-            <Text style={[styles.approvalText, { color: item.parentApproved ? "#4CAF50" : "#FFA500" }]}>
-                Parent {item.parentApproved ? "Approved" : "Pending"}
-            </Text>
-          </View>
-        </View>
-      )}
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.btn, styles.rejectBtn]}
-          onPress={() => handleAction(item, "reject")}
-          disabled={processing === item.id}
-        >
-          <Text style={styles.btnText}>Reject</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.btn, styles.approveBtn]}
-          onPress={() => handleAction(item, "approve")}
-          disabled={processing === item.id}
-        >
-          {processing === item.id ? (
-            <ActivityIndicator color={theme.white} size="small" />
-          ) : (
-            <Text style={styles.btnText}>Approve</Text>
-          )}
-        </TouchableOpacity>
+      <View style={styles.auditInfo}>
+        <Text style={styles.auditText}>Created: {new Date(item.createdAt).toLocaleString()}</Text>
+        {item.type === 'promissory' && (
+            <Text style={styles.auditText}>Parent Hub: {item.parentApproved ? 'Signed' : 'Pending'}</Text>
+        )}
       </View>
     </View>
   );
@@ -165,18 +107,33 @@ export default function TeacherLettersScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Pending Letters</Text>
-        <Text style={styles.subtitle}>Review excuses and promissory notes</Text>
+        <Text style={styles.title}>Letter Audit</Text>
+        <Text style={styles.subtitle}>Universal visibility of all records</Text>
       </View>
+
+      <View style={styles.filterRow}>
+        {(['all', 'pending', 'approved', 'rejected'] as const).map(f => (
+            <TouchableOpacity 
+                key={f}
+                style={[styles.filterBtn, filter === f && styles.activeFilter]}
+                onPress={() => setFilter(f)}
+            >
+                <Text style={[styles.filterText, filter === f && styles.activeFilterText]}>
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                </Text>
+            </TouchableOpacity>
+        ))}
+      </View>
+
       <FlatList
-        data={letters}
+        data={filteredLetters}
         keyExtractor={(item) => item.id}
         renderItem={renderLetterItem}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Ionicons name="mail-open-outline" size={64} color={theme.lilacBlue} />
-            <Text style={styles.emptyText}>No pending letters to review.</Text>
+            <Ionicons name="documents-outline" size={64} color={theme.lilacBlue} />
+            <Text style={styles.emptyText}>No records found matching filter.</Text>
           </View>
         }
       />
@@ -188,12 +145,12 @@ function getStyles(theme: ColorTheme) {
     return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.nightTime,
+    backgroundColor: theme.background,
     paddingTop: 60,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: theme.nightTime,
+    backgroundColor: theme.background,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -204,19 +161,45 @@ function getStyles(theme: ColorTheme) {
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: theme.white,
+    color: theme.text,
   },
   subtitle: {
     fontSize: 14,
     color: theme.lilacBlue,
     marginTop: 4,
   },
+  filterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    gap: 8,
+  },
+  filterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: theme.sailingBlue,
+    backgroundColor: theme.card,
+  },
+  activeFilter: {
+    backgroundColor: theme.solidBlue,
+    borderColor: theme.solidBlue,
+  },
+  filterText: {
+    fontSize: 12,
+    color: theme.lilacBlue,
+    fontWeight: 'bold',
+  },
+  activeFilterText: {
+    color: theme.white,
+  },
   list: {
     paddingHorizontal: 20,
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: theme.deepSea,
+    backgroundColor: theme.card,
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
@@ -226,12 +209,18 @@ function getStyles(theme: ColorTheme) {
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: 'center',
     marginBottom: 12,
   },
-  badgeContainer: {
+  typeBadge: {
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   badgeText: {
     color: theme.white,
@@ -243,14 +232,14 @@ function getStyles(theme: ColorTheme) {
     fontSize: 12,
   },
   studentName: {
-    color: theme.white,
+    color: theme.text,
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 8,
   },
   reasonContainer: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.05)',
     padding: 12,
     borderRadius: 12,
     marginBottom: 12,
@@ -261,50 +250,20 @@ function getStyles(theme: ColorTheme) {
     marginTop: 2,
   },
   reason: {
-    color: theme.white,
+    color: theme.text,
     fontSize: 14,
     lineHeight: 20,
     flex: 1,
   },
-  statusRow: {
-    marginBottom: 16,
+  auditInfo: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    paddingTop: 8,
+    gap: 4,
   },
-  approvalBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-  },
-  approvalText: {
-    fontSize: 12,
-    fontWeight: "bold",
-  },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 12,
-  },
-  btn: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 10,
-    minWidth: 100,
-    alignItems: 'center',
-  },
-  rejectBtn: {
-    backgroundColor: theme.error,
-    opacity: 0.8,
-  },
-  approveBtn: {
-    backgroundColor: theme.solidBlue,
-  },
-  btnText: {
-    color: theme.white,
-    fontWeight: "bold",
+  auditText: {
+    color: theme.lilacBlue,
+    fontSize: 11,
   },
   emptyState: {
     alignItems: "center",

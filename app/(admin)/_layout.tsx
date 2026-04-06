@@ -1,18 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+
 
 export default function TabLayout() {
+    const theme = useAppTheme();
+
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: Colors.nightTime,
-                    borderTopColor: Colors.sailingBlue,
+                    backgroundColor: theme.nightTime,
+                    borderTopColor: theme.sailingBlue,
                 },
-                tabBarActiveTintColor: Colors.solidBlue,
-                tabBarInactiveTintColor: Colors.lilacBlue,
+                tabBarActiveTintColor: theme.solidBlue,
+                tabBarInactiveTintColor: theme.lilacBlue,
             }}
         >
             <Tabs.Screen
@@ -34,6 +37,13 @@ export default function TabLayout() {
                 options={{
                     title: 'Teachers',
                     tabBarIcon: ({ color }) => <Ionicons name="school" size={24} color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="letters"
+                options={{
+                    title: 'Letters',
+                    tabBarIcon: ({ color }) => <Ionicons name="documents-outline" size={24} color={color} />,
                 }}
             />
             <Tabs.Screen

@@ -30,6 +30,9 @@ export const analytics =
 import { getAuth } from "firebase/auth";
 export const auth = getAuth(firebaseApp);
 
+import { getStorage } from "firebase/storage";
+export const storage = getStorage(firebaseApp);
+
 // Secondary App for Admin usage (creating users without logging out the admin)
 export const secondaryFirebaseApp = initializeApp(firebaseConfig, "Secondary");
 export const secondaryAuth = getAuth(secondaryFirebaseApp);

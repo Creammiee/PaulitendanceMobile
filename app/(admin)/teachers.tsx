@@ -2,11 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { db } from '../../lib/firebaseConfig';
 import { UserProfile } from '../../types/db';
 
 export default function AdminTeachersScreen() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
     const [teachers, setTeachers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedTeacher, setSelectedTeacher] = useState<UserProfile | null>(null);
@@ -70,12 +74,12 @@ export default function AdminTeachersScreen() {
     const renderTeacherItem = ({ item }: { item: UserProfile }) => (
         <TouchableOpacity style={styles.card} onPress={() => handleEdit(item)}>
             <View style={styles.cardHeader}>
-                <Ionicons name="person-circle-outline" size={40} color={Colors.lilacBlue} />
+                <Ionicons name="person-circle-outline" size={40} color={theme.lilacBlue} />
                 <View style={styles.info}>
                     <Text style={styles.name}>{item.fullName}</Text>
                     <Text style={styles.email}>{item.email}</Text>
                 </View>
-                <Ionicons name="create-outline" size={24} color={Colors.solidBlue} />
+                <Ionicons name="create-outline" size={24} color={theme.solidBlue} />
             </View>
             <View style={styles.sectionContainer}>
                 <Text style={styles.sectionLabel}>Assigned Section:</Text>
@@ -89,7 +93,7 @@ export default function AdminTeachersScreen() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.lilacBlue} />
+                <ActivityIndicator size="large" color={theme.lilacBlue} />
             </View>
         );
     }
@@ -121,7 +125,7 @@ export default function AdminTeachersScreen() {
                         <TextInput
                             style={styles.input}
                             placeholder="Section Name (e.g. Grade 10 - Rizal)"
-                            placeholderTextColor={Colors.lilacBlue}
+                            placeholderTextColor={theme.lilacBlue}
                             value={newSection}
                             onChangeText={setNewSection}
                         />
@@ -139,7 +143,7 @@ export default function AdminTeachersScreen() {
                                 disabled={updating}
                             >
                                 {updating ? (
-                                    <ActivityIndicator size="small" color={Colors.white} />
+                                    <ActivityIndicator size="small" color={theme.white} />
                                 ) : (
                                     <Text style={styles.modalBtnText}>Save</Text>
                                 )}
@@ -152,15 +156,16 @@ export default function AdminTeachersScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.nightTime,
         paddingTop: 60,
     },
     loadingContainer: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.nightTime,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -171,19 +176,19 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.white,
     },
     list: {
         paddingHorizontal: 20,
         paddingBottom: 40,
     },
     card: {
-        backgroundColor: Colors.deepSea,
+        backgroundColor: theme.deepSea,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -195,12 +200,12 @@ const styles = StyleSheet.create({
         marginLeft: 12,
     },
     name: {
-        color: Colors.white,
+        color: theme.white,
         fontSize: 18,
         fontWeight: 'bold',
     },
     email: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         fontSize: 12,
     },
     sectionContainer: {
@@ -212,11 +217,11 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
     sectionLabel: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         fontSize: 14,
     },
     sectionValue: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: 'bold',
         fontSize: 14,
     },
@@ -225,7 +230,7 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
     },
     emptyText: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         textAlign: 'center',
         marginTop: 40,
     },
@@ -237,27 +242,27 @@ const styles = StyleSheet.create({
         padding: 20,
     },
     modalContent: {
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.nightTime,
         borderRadius: 16,
         padding: 24,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
     },
     modalTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.white,
         marginBottom: 8,
     },
     modalSubtitle: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         marginBottom: 16,
     },
     input: {
-        backgroundColor: Colors.deepSea,
-        color: Colors.white,
+        backgroundColor: theme.deepSea,
+        color: theme.white,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
         borderRadius: 8,
         padding: 12,
         fontSize: 16,
@@ -279,10 +284,11 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     saveBtn: {
-        backgroundColor: Colors.solidBlue,
+        backgroundColor: theme.solidBlue,
     },
     modalBtnText: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: 'bold',
     },
-});
+    });
+}

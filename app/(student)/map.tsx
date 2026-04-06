@@ -4,11 +4,15 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import SchoolMap, { MapMarker } from '../../components/SchoolMap';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { useAuth } from '../../ctx/AuthContext';
 import { requestLocationPermissions, updateStudentLocation } from '../../lib/location';
 
 export default function StudentMap() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
     const { user } = useAuth();
     const router = useRouter();
     const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
@@ -75,7 +79,8 @@ export default function StudentMap() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
     },
@@ -94,14 +99,15 @@ const styles = StyleSheet.create({
         bottom: 30,
         left: 20,
         right: 20,
-        backgroundColor: Colors.white,
+        backgroundColor: theme.white,
         padding: 15,
         borderRadius: 10,
         alignItems: 'center',
         elevation: 5,
     },
     infoText: {
-        color: Colors.nightTime,
+        color: theme.nightTime,
         fontWeight: 'bold',
     }
-});
+    });
+}

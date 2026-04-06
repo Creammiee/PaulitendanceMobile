@@ -3,17 +3,26 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { collection, doc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { db, secondaryAuth } from '../../lib/firebaseConfig';
 import { UserProfile, UserRole } from '../../types/db';
 
 export default function AdminUsersScreen() {
-    const [activeTab, setActiveTab] = useState<'pending' | 'add'>('pending');
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
+    const [activeTab, setActiveTab] = useState<'pending' | 'active' | 'add'>('pending');
     
     // Pending Tab State
     const [pendingUsers, setPendingUsers] = useState<UserProfile[]>([]);
     const [loadingPending, setLoadingPending] = useState(true);
     const [processingId, setProcessingId] = useState<string | null>(null);
+
+    // Active Tab State
+    const [activeUsers, setActiveUsers] = useState<UserProfile[]>([]);
+    const [loadingActive, setLoadingActive] = useState(false);
+    const [directoryFilter, setDirectoryFilter] = useState<UserRole>('student');
 
     // Add User Form State
     const [email, setEmail] = useState('');
@@ -27,6 +36,8 @@ export default function AdminUsersScreen() {
     useEffect(() => {
         if (activeTab === 'pending') {
             loadPendingUsers();
+        } else if (activeTab === 'active') {
+            loadActiveUsers();
         }
     }, [activeTab]);
 
@@ -48,6 +59,26 @@ export default function AdminUsersScreen() {
             Alert.alert("Error", "Failed to load pending users.");
         } finally {
             setLoadingPending(false);
+        }
+    };
+
+    const loadActiveUsers = async () => {
+        setLoadingActive(true);
+        try {
+            const querySnapshot = await getDocs(collection(db, 'users'));
+            const usersList: UserProfile[] = [];
+            querySnapshot.forEach((doc) => {
+                const data = doc.data() as UserProfile;
+                if (data.status !== 'pending') {
+                    usersList.push(data);
+                }
+            });
+            setActiveUsers(usersList);
+        } catch (error) {
+            console.error("Error loading active users:", error);
+            Alert.alert("Error", "Failed to load active users.");
+        } finally {
+            setLoadingActive(false);
         }
     };
 
@@ -78,8 +109,14 @@ export default function AdminUsersScreen() {
             const collectionName = user.role === 'admin' ? 'admins' : `${user.role}s`;
             await updateDoc(doc(db, collectionName, user.uid), { status: 'rejected' }).catch(e => console.log('Legacy collection update omitted/failed'));
             
-            Alert.alert("Success", `${user.fullName} has been rejected.`);
+            Alert.alert("Success", `${user.fullName} has been rejected or revoked.`);
             setPendingUsers(prev => prev.filter(u => u.uid !== user.uid));
+            
+            // Also update active users if we revoked an active one
+            setActiveUsers(prev => 
+                prev.map(u => u.uid === user.uid ? { ...u, status: 'rejected' } : u)
+            );
+            
         } catch (error) {
             console.error(error);
             Alert.alert("Error", "Failed to reject user.");
@@ -196,10 +233,16 @@ export default function AdminUsersScreen() {
     const renderPendingUser = ({ item }: { item: UserProfile }) => (
         <View style={styles.card}>
             <View style={styles.cardHeader}>
-                <Ionicons name="person-circle-outline" size={40} color={Colors.lilacBlue} />
+                <Ionicons name="person-circle-outline" size={40} color={theme.lilacBlue} />
                 <View style={styles.info}>
-                    <Text style={styles.name}>{item.fullName}</Text>
-                    <Text style={styles.email}>{item.email} • {item.role?.toUpperCase()}</Text>
+                    <View style={styles.nameRow}>
+                        <Text style={styles.name}>{item.fullName}</Text>
+                        <View style={[styles.roleBadge, { backgroundColor: item.role === 'admin' ? theme.error : item.role === 'teacher' ? theme.solidBlue : theme.dive }]}>
+                            <Text style={styles.roleBadgeText}>{item.role?.toUpperCase()}</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.email}>{item.email}</Text>
+                    <Text style={styles.userIdText}>ID: {item.uid.substring(0, 8).toUpperCase()}</Text>
                 </View>
             </View>
             <View style={styles.actionButtons}>
@@ -209,7 +252,7 @@ export default function AdminUsersScreen() {
                     disabled={processingId === item.uid}
                 >
                     {processingId === item.uid ? (
-                        <ActivityIndicator color={Colors.white} size="small" />
+                        <ActivityIndicator color={theme.white} size="small" />
                     ) : (
                         <Text style={styles.btnText}>Approve</Text>
                     )}
@@ -225,6 +268,45 @@ export default function AdminUsersScreen() {
         </View>
     );
 
+    const renderActiveUser = ({ item }: { item: UserProfile }) => (
+        <View style={styles.card}>
+            <View style={styles.cardHeader}>
+                <Ionicons name="person-circle-outline" size={40} color={theme.lilacBlue} />
+                <View style={styles.info}>
+                    <View style={styles.nameRow}>
+                        <Text style={styles.name}>{item.fullName}</Text>
+                        <View style={[styles.roleBadge, { backgroundColor: item.role === 'admin' ? theme.error : item.role === 'teacher' ? theme.solidBlue : theme.dive }]}>
+                            <Text style={styles.roleBadgeText}>{item.role?.toUpperCase()}</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.email}>{item.email}</Text>
+                    <View style={styles.credentialRow}>
+                        <Text style={styles.userIdText}>ID: {item.uid.substring(0, 8).toUpperCase()}</Text>
+                        {item.bindingKey && (
+                            <Text style={styles.bindingKeyText}>Key: {item.bindingKey}</Text>
+                        )}
+                    </View>
+                    <Text style={[styles.email, { marginTop: 4 }]}>Status: {item.status?.toUpperCase() || 'ACTIVE'}</Text>
+                </View>
+            </View>
+            <View style={styles.actionButtons}>
+                {item.status !== 'rejected' && (
+                    <TouchableOpacity 
+                        style={[styles.btn, styles.rejectBtn]} 
+                        onPress={() => handleReject(item)}
+                        disabled={processingId === item.uid}
+                    >
+                        {processingId === item.uid ? (
+                            <ActivityIndicator color={theme.white} size="small" />
+                        ) : (
+                            <Text style={styles.btnText}>Revoke Access</Text>
+                        )}
+                    </TouchableOpacity>
+                )}
+            </View>
+        </View>
+    );
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -236,20 +318,26 @@ export default function AdminUsersScreen() {
                     style={[styles.tab, activeTab === 'pending' && styles.activeTab]}
                     onPress={() => setActiveTab('pending')}
                 >
-                    <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>Pending Approvals</Text>
+                    <Text style={[styles.tabText, activeTab === 'pending' && styles.activeTabText]}>Pending</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.tab, activeTab === 'active' && styles.activeTab]}
+                    onPress={() => setActiveTab('active')}
+                >
+                    <Text style={[styles.tabText, activeTab === 'active' && styles.activeTabText]}>Directory</Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
                     style={[styles.tab, activeTab === 'add' && styles.activeTab]}
                     onPress={() => setActiveTab('add')}
                 >
-                    <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>Add New User</Text>
+                    <Text style={[styles.tabText, activeTab === 'add' && styles.activeTabText]}>Add</Text>
                 </TouchableOpacity>
             </View>
 
             {activeTab === 'pending' ? (
                 loadingPending ? (
                     <View style={styles.centerBox}>
-                        <ActivityIndicator size="large" color={Colors.lilacBlue} />
+                        <ActivityIndicator size="large" color={theme.lilacBlue} />
                     </View>
                 ) : (
                     <FlatList
@@ -260,6 +348,36 @@ export default function AdminUsersScreen() {
                         ListEmptyComponent={<Text style={styles.emptyText}>No pending users awaiting approval.</Text>}
                     />
                 )
+            ) : activeTab === 'active' ? (
+                <View style={{ flex: 1 }}>
+                    <View style={styles.subTabContainer}>
+                        {(['student', 'parent', 'teacher'] as const).map(filterRole => (
+                            <TouchableOpacity 
+                                key={filterRole}
+                                style={[styles.subTab, directoryFilter === filterRole && styles.activeSubTab]}
+                                onPress={() => setDirectoryFilter(filterRole as any)}
+                            >
+                                <Text style={[styles.subTabText, directoryFilter === filterRole && styles.activeSubTabText]}>
+                                    {filterRole.charAt(0).toUpperCase() + filterRole.slice(1)}s
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                    
+                    {loadingActive ? (
+                        <View style={styles.centerBox}>
+                            <ActivityIndicator size="large" color={theme.lilacBlue} />
+                        </View>
+                    ) : (
+                        <FlatList
+                            data={activeUsers.filter(u => u.role === directoryFilter)}
+                            keyExtractor={item => item.uid}
+                            renderItem={renderActiveUser}
+                            contentContainerStyle={styles.list}
+                            ListEmptyComponent={<Text style={styles.emptyText}>No active users found for this role.</Text>}
+                        />
+                    )}
+                </View>
             ) : (
                 <ScrollView contentContainerStyle={styles.formContainer}>
                     <Text style={styles.formSubtitle}>Create an Active Account</Text>
@@ -280,22 +398,22 @@ export default function AdminUsersScreen() {
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Ionicons name="person-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                        <Ionicons name="person-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Full Name"
-                            placeholderTextColor={Colors.lilacBlue}
+                            placeholderTextColor={theme.lilacBlue}
                             value={fullName}
                             onChangeText={setFullName}
                         />
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Ionicons name="mail-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                        <Ionicons name="mail-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Email Address"
-                            placeholderTextColor={Colors.lilacBlue}
+                            placeholderTextColor={theme.lilacBlue}
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
@@ -304,11 +422,11 @@ export default function AdminUsersScreen() {
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Ionicons name="lock-closed-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                        <Ionicons name="lock-closed-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Password"
-                            placeholderTextColor={Colors.lilacBlue}
+                            placeholderTextColor={theme.lilacBlue}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
@@ -317,11 +435,11 @@ export default function AdminUsersScreen() {
 
                     {(role === 'student' || role === 'teacher') && (
                         <View style={styles.inputGroup}>
-                            <Ionicons name="school-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                            <Ionicons name="school-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Section (Optional)"
-                                placeholderTextColor={Colors.lilacBlue}
+                                placeholderTextColor={theme.lilacBlue}
                                 value={section}
                                 onChangeText={setSection}
                             />
@@ -330,11 +448,11 @@ export default function AdminUsersScreen() {
 
                     {role === 'parent' && (
                         <View style={styles.inputGroup}>
-                            <Ionicons name="key-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                            <Ionicons name="key-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Child's Binding Key"
-                                placeholderTextColor={Colors.lilacBlue}
+                                placeholderTextColor={theme.lilacBlue}
                                 value={bindingKeyInput}
                                 onChangeText={setBindingKeyInput}
                                 autoCapitalize="characters"
@@ -348,7 +466,7 @@ export default function AdminUsersScreen() {
                         disabled={addingUser}
                     >
                         {addingUser ? (
-                            <ActivityIndicator color={Colors.white} />
+                            <ActivityIndicator color={theme.white} />
                         ) : (
                             <Text style={styles.submitBtnText}>Create User</Text>
                         )}
@@ -360,10 +478,11 @@ export default function AdminUsersScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.background,
         paddingTop: 60,
     },
     header: {
@@ -373,14 +492,14 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.text,
     },
     tabContainer: {
         flexDirection: 'row',
         paddingHorizontal: 20,
         marginBottom: 20,
         borderBottomWidth: 1,
-        borderBottomColor: Colors.sailingBlue,
+        borderBottomColor: theme.sailingBlue,
     },
     tab: {
         flex: 1,
@@ -389,15 +508,40 @@ const styles = StyleSheet.create({
     },
     activeTab: {
         borderBottomWidth: 3,
-        borderBottomColor: Colors.solidBlue,
+        borderBottomColor: theme.solidBlue,
     },
     tabText: {
         fontSize: 16,
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         fontWeight: 'bold',
     },
     activeTabText: {
-        color: Colors.white,
+        color: theme.text,
+    },
+    subTabContainer: {
+        flexDirection: 'row',
+        paddingHorizontal: 20,
+        marginBottom: 10,
+        gap: 8,
+    },
+    subTab: {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: theme.sailingBlue,
+    },
+    activeSubTab: {
+        backgroundColor: theme.solidBlue,
+        borderColor: theme.solidBlue,
+    },
+    subTabText: {
+        color: theme.lilacBlue,
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    activeSubTabText: {
+        color: theme.text,
     },
     centerBox: {
         flex: 1,
@@ -409,12 +553,12 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     card: {
-        backgroundColor: Colors.deepSea,
+        backgroundColor: theme.card,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -426,12 +570,12 @@ const styles = StyleSheet.create({
         marginLeft: 12,
     },
     name: {
-        color: Colors.white,
+        color: theme.text,
         fontSize: 18,
         fontWeight: 'bold',
     },
     email: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         fontSize: 12,
         marginTop: 2,
     },
@@ -446,18 +590,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     approveBtn: {
-        backgroundColor: Colors.dive,
+        backgroundColor: theme.dive,
     },
     rejectBtn: {
-        backgroundColor: Colors.error,
+        backgroundColor: theme.error,
         opacity: 0.8,
     },
     btnText: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: 'bold',
     },
     emptyText: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         textAlign: 'center',
         marginTop: 40,
     },
@@ -466,13 +610,13 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
     },
     formSubtitle: {
-        color: Colors.white,
+        color: theme.text,
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 20,
     },
     label: {
-        color: Colors.white,
+        color: theme.text,
         marginBottom: 10,
         fontSize: 16,
     },
@@ -486,28 +630,28 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: Colors.lilacBlue,
+        borderColor: theme.lilacBlue,
     },
     roleBtnActive: {
-        backgroundColor: Colors.solidBlue,
-        borderColor: Colors.solidBlue,
+        backgroundColor: theme.solidBlue,
+        borderColor: theme.solidBlue,
     },
     roleBtnText: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
     },
     roleBtnTextActive: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: 'bold',
     },
     inputGroup: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.deepSea,
+        backgroundColor: theme.card,
         borderRadius: 12,
         paddingHorizontal: 15,
         height: 50,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
         marginBottom: 16,
     },
     inputIcon: {
@@ -515,11 +659,11 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        color: Colors.white,
+        color: theme.text,
         fontSize: 16,
     },
     submitBtn: {
-        backgroundColor: Colors.solidBlue,
+        backgroundColor: theme.solidBlue,
         height: 50,
         borderRadius: 12,
         justifyContent: 'center',
@@ -527,8 +671,41 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     submitBtnText: {
-        color: Colors.white,
+        color: theme.white,
         fontSize: 18,
         fontWeight: 'bold',
     },
-});
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    roleBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 4,
+    },
+    roleBadgeText: {
+        color: theme.white,
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
+    userIdText: {
+        color: theme.lilacBlue,
+        fontSize: 12,
+        marginTop: 2,
+        fontWeight: '500',
+    },
+    credentialRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginTop: 4,
+    },
+    bindingKeyText: {
+        color: theme.solidBlue,
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    });
+}

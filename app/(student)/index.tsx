@@ -6,24 +6,32 @@ import {
     getDoc,
     onSnapshot,
     query,
+    updateDoc,
     where,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
+    Alert,
+    Modal,
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
-import { Colors } from "../../constants/Colors";
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { useAuth } from "../../ctx/AuthContext";
 import { db } from "../../lib/firebaseConfig";
 import { checkAttendanceStatus } from "../../lib/location";
 import { Attendance, Letter } from "../../types/db";
 
 export default function StudentDashboard() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
   const { signOut, user } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -31,6 +39,12 @@ export default function StudentDashboard() {
   const [letters, setLetters] = useState<Letter[]>([]);
   const [checkingLocation, setCheckingLocation] = useState(false);
   const [studentProfile, setStudentProfile] = useState<any>(null);
+
+  // Promissory Note States
+  const [modalVisible, setModalVisible] = useState(false);
+  const [reasonInput, setReasonInput] = useState("");
+  const [selectedLetter, setSelectedLetter] = useState<Letter | null>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -85,7 +99,6 @@ export default function StudentDashboard() {
     setCheckingLocation(true);
     try {
       await checkAttendanceStatus(user.uid);
-      // The listener will update the UI if status changes
     } catch (error) {
       console.error("Error checking attendance:", error);
     } finally {
@@ -93,10 +106,32 @@ export default function StudentDashboard() {
     }
   };
 
+  const handleUpdateReason = async () => {
+    if (!selectedLetter || !reasonInput.trim()) {
+        Alert.alert("Error", "Please provide a reason.");
+        return;
+    }
+
+    setUpdating(true);
+    try {
+        const letterRef = doc(db, "letters", selectedLetter.id);
+        await updateDoc(letterRef, {
+            reason: reasonInput,
+        });
+        setModalVisible(false);
+        Alert.alert("Success", "Explanation submitted for review.");
+    } catch (error) {
+        console.error("Error updating reason:", error);
+        Alert.alert("Error", "Failed to update reason.");
+    } finally {
+        setUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.lilacBlue} />
+        <ActivityIndicator size="large" color={theme.lilacBlue} />
       </View>
     );
   }
@@ -123,13 +158,13 @@ export default function StudentDashboard() {
         <Ionicons
           name="log-out-outline"
           size={24}
-          color={Colors.white}
+          color={theme.white}
           onPress={signOut}
         />
       </View>
 
       <View style={styles.statusSection}>
-        <Text style={styles.subtitle}>Today\u2019s Status</Text>
+        <Text style={styles.subtitle}>Today’s Status</Text>
 
         {attendance ? (
           <View
@@ -153,7 +188,7 @@ export default function StudentDashboard() {
                     : "close-circle"
               }
               size={64}
-              color={Colors.white}
+              color={theme.white}
             />
             <Text style={styles.statusText}>
               {attendance.status.toUpperCase()}
@@ -169,12 +204,12 @@ export default function StudentDashboard() {
         ) : (
           <View style={styles.statusCard}>
             {checkingLocation ? (
-              <ActivityIndicator color={Colors.white} />
+              <ActivityIndicator color={theme.white} />
             ) : (
               <Ionicons
                 name="location-outline"
                 size={64}
-                color={Colors.lilacBlue}
+                color={theme.lilacBlue}
               />
             )}
             <Text style={styles.statusText}>Checking In...</Text>
@@ -229,22 +264,80 @@ export default function StudentDashboard() {
                   </Text>
                 </View>
               )}
+
+              {letter.status === "pending" && (
+                <TouchableOpacity 
+                    style={styles.submitReasonBtn}
+                    onPress={() => {
+                        setSelectedLetter(letter);
+                        setReasonInput(letter.reason === 'Late arrival' ? '' : letter.reason);
+                        setModalVisible(true);
+                    }}
+                >
+                    <Text style={styles.submitReasonText}>
+                        {letter.reason === 'Late arrival' ? 'Submit Reason' : 'Update Reason'}
+                    </Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))
         )}
       </View>
+
+      <Modal
+        visible={modalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Promissory Note</Text>
+                    <Ionicons 
+                        name="close" 
+                        size={24} 
+                        color={theme.white} 
+                        onPress={() => setModalVisible(false)} 
+                    />
+                </View>
+                <Text style={styles.modalLabel}>Why are you arriving late?</Text>
+                <TextInput
+                    style={styles.reasonInput}
+                    placeholder="Enter your excuse here..."
+                    placeholderTextColor={theme.lilacBlue}
+                    multiline
+                    numberOfLines={4}
+                    value={reasonInput}
+                    onChangeText={setReasonInput}
+                />
+                <TouchableOpacity 
+                    style={styles.saveBtn}
+                    onPress={handleUpdateReason}
+                    disabled={updating}
+                >
+                    {updating ? (
+                        <ActivityIndicator color={theme.white} />
+                    ) : (
+                        <Text style={styles.saveBtnText}>Submit Explanation</Text>
+                    )}
+                </TouchableOpacity>
+            </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.nightTime,
+    backgroundColor: theme.nightTime,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: Colors.nightTime,
+    backgroundColor: theme.nightTime,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -261,29 +354,29 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: Colors.white,
+    color: theme.white,
   },
   sectionText: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontSize: 16,
     marginTop: 4,
   },
   keyContainer: {
     marginTop: 8,
-    backgroundColor: Colors.deepSea,
+    backgroundColor: theme.deepSea,
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
     alignSelf: "flex-start",
   },
   keyLabel: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontSize: 10,
     marginBottom: 2,
   },
   keyText: {
-    color: Colors.solidBlue,
+    color: theme.solidBlue,
     fontWeight: "bold",
     fontSize: 18,
     letterSpacing: 2,
@@ -291,7 +384,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     marginBottom: 16,
   },
   statusSection: {
@@ -303,19 +396,19 @@ const styles = StyleSheet.create({
     padding: 30,
     borderRadius: 20,
     alignItems: "center",
-    backgroundColor: Colors.deepSea,
+    backgroundColor: theme.deepSea,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
   },
   statusGreen: { backgroundColor: "#4CAF50" },
   statusOrange: { backgroundColor: "#FFA500" },
-  statusRed: { backgroundColor: Colors.error },
-  statusGray: { backgroundColor: Colors.deepSea },
+  statusRed: { backgroundColor: theme.error },
+  statusGray: { backgroundColor: theme.deepSea },
 
   statusText: {
     fontSize: 28,
     fontWeight: "bold",
-    color: Colors.white,
+    color: theme.white,
     marginVertical: 10,
   },
   timeText: {
@@ -324,13 +417,13 @@ const styles = StyleSheet.create({
   },
   retryBtn: {
     marginTop: 10,
-    backgroundColor: Colors.solidBlue,
+    backgroundColor: theme.solidBlue,
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 20,
   },
   retryText: {
-    color: Colors.white,
+    color: theme.white,
     fontWeight: "bold",
   },
 
@@ -338,12 +431,12 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   letterCard: {
-    backgroundColor: Colors.deepSea,
+    backgroundColor: theme.deepSea,
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.sailingBlue,
+    borderColor: theme.sailingBlue,
   },
   letterHeader: {
     flexDirection: "row",
@@ -351,22 +444,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   letterType: {
-    color: Colors.dive,
+    color: theme.dive,
     fontWeight: "bold",
   },
   letterStatus: {
     fontWeight: "bold",
   },
   textGreen: { color: "#4CAF50" },
-  textRed: { color: Colors.error },
+  textRed: { color: theme.error },
   textOrange: { color: "#FFA500" },
   letterDate: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontSize: 12,
     marginBottom: 8,
   },
   letterReason: {
-    color: Colors.white,
+    color: theme.white,
     fontSize: 14,
     marginBottom: 12,
   },
@@ -378,12 +471,79 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   approvalText: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontSize: 12,
   },
   emptyText: {
-    color: Colors.lilacBlue,
+    color: theme.lilacBlue,
     fontStyle: "italic",
     textAlign: "center",
   },
-});
+  submitReasonBtn: {
+    backgroundColor: theme.solidBlue,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  submitReasonText: {
+    color: theme.white,
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: theme.nightTime,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    borderTopWidth: 1,
+    borderTopColor: theme.sailingBlue,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: theme.white,
+  },
+  modalLabel: {
+    color: theme.lilacBlue,
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  reasonInput: {
+    backgroundColor: theme.deepSea,
+    color: theme.white,
+    borderRadius: 12,
+    padding: 16,
+    height: 120,
+    textAlignVertical: "top",
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: theme.sailingBlue,
+    marginBottom: 20,
+  },
+  saveBtn: {
+    backgroundColor: theme.solidBlue,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  saveBtnText: {
+    color: theme.white,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+    });
+}

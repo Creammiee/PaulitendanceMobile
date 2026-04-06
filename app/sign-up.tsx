@@ -4,11 +4,15 @@ import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { collection, doc, getDocs, limit, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../constants/Colors';
+import { useAppTheme } from '../hooks/useAppTheme';
+import { ColorTheme } from '../constants/Colors';
 import { auth, db } from '../lib/firebaseConfig';
 import { UserProfile, UserRole } from '../types/db';
 
 export default function SignUpScreen() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
     const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -132,7 +136,7 @@ export default function SignUpScreen() {
         >
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.white} />
+                    <Ionicons name="arrow-back" size={24} color={theme.white} />
                 </TouchableOpacity>
 
                 <Text style={styles.title}>Create Account</Text>
@@ -157,22 +161,22 @@ export default function SignUpScreen() {
 
                 <View style={styles.form}>
                     <View style={styles.inputGroup}>
-                        <Ionicons name="person-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                        <Ionicons name="person-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Full Name"
-                            placeholderTextColor={Colors.lilacBlue}
+                            placeholderTextColor={theme.lilacBlue}
                             value={fullName}
                             onChangeText={setFullName}
                         />
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Ionicons name="mail-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                        <Ionicons name="mail-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Email"
-                            placeholderTextColor={Colors.lilacBlue}
+                            placeholderTextColor={theme.lilacBlue}
                             value={email}
                             onChangeText={setEmail}
                             autoCapitalize="none"
@@ -181,11 +185,11 @@ export default function SignUpScreen() {
                     </View>
 
                     <View style={styles.inputGroup}>
-                        <Ionicons name="lock-closed-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                        <Ionicons name="lock-closed-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                         <TextInput
                             style={styles.input}
                             placeholder="Password"
-                            placeholderTextColor={Colors.lilacBlue}
+                            placeholderTextColor={theme.lilacBlue}
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry
@@ -195,11 +199,11 @@ export default function SignUpScreen() {
                     {/* Dynamic Fields based on Role */}
                     {role === 'student' && (
                         <View style={styles.inputGroup}>
-                            <Ionicons name="school-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                            <Ionicons name="school-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Section (e.g. Grade 10 - Rizal)"
-                                placeholderTextColor={Colors.lilacBlue}
+                                placeholderTextColor={theme.lilacBlue}
                                 value={section}
                                 onChangeText={setSection}
                             />
@@ -208,11 +212,11 @@ export default function SignUpScreen() {
 
                     {role === 'parent' && (
                         <View style={styles.inputGroup}>
-                            <Ionicons name="key-outline" size={20} color={Colors.lilacBlue} style={styles.inputIcon} />
+                            <Ionicons name="key-outline" size={20} color={theme.lilacBlue} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 placeholder="Child's Binding Key"
-                                placeholderTextColor={Colors.lilacBlue}
+                                placeholderTextColor={theme.lilacBlue}
                                 value={bindingKeyInput}
                                 onChangeText={setBindingKeyInput}
                                 autoCapitalize="characters"
@@ -226,7 +230,7 @@ export default function SignUpScreen() {
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color={Colors.white} />
+                            <ActivityIndicator color={theme.white} />
                         ) : (
                             <Text style={styles.buttonText}>Sign Up</Text>
                         )}
@@ -244,10 +248,11 @@ export default function SignUpScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.nightTime,
     },
     scrollContent: {
         flexGrow: 1,
@@ -260,19 +265,19 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 32,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.white,
         marginBottom: 5,
     },
     subtitle: {
         fontSize: 16,
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         marginBottom: 30,
     },
     roleContainer: {
         marginBottom: 20,
     },
     label: {
-        color: Colors.white,
+        color: theme.white,
         marginBottom: 10,
         fontSize: 16,
     },
@@ -285,17 +290,17 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: Colors.lilacBlue,
+        borderColor: theme.lilacBlue,
     },
     roleBtnActive: {
-        backgroundColor: Colors.solidBlue,
-        borderColor: Colors.solidBlue,
+        backgroundColor: theme.solidBlue,
+        borderColor: theme.solidBlue,
     },
     roleBtnText: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
     },
     roleBtnTextActive: {
-        color: Colors.white,
+        color: theme.white,
         fontWeight: 'bold',
     },
     form: {
@@ -304,36 +309,36 @@ const styles = StyleSheet.create({
     inputGroup: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: Colors.deepSea,
+        backgroundColor: theme.deepSea,
         borderRadius: 12,
         paddingHorizontal: 15,
         height: 50,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
     },
     inputIcon: {
         marginRight: 10,
     },
     input: {
         flex: 1,
-        color: Colors.white,
+        color: theme.white,
         fontSize: 16,
     },
     button: {
-        backgroundColor: Colors.solidBlue,
+        backgroundColor: theme.solidBlue,
         height: 50,
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 10,
-        shadowColor: Colors.solidBlue,
+        shadowColor: theme.solidBlue,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
         elevation: 5,
     },
     buttonText: {
-        color: Colors.white,
+        color: theme.white,
         fontSize: 18,
         fontWeight: 'bold',
     },
@@ -343,13 +348,14 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     loginText: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         fontSize: 14,
     },
     loginBtnText: {
-        color: Colors.white,
+        color: theme.white,
         fontSize: 14,
         fontWeight: 'bold',
         textDecorationLine: 'underline',
     },
-});
+    });
+}

@@ -3,12 +3,18 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { useAuth } from '../../ctx/AuthContext';
+import { useThemeContext } from '../../ctx/ThemeContext';
 import { db } from '../../lib/firebaseConfig';
 import { SchoolSettings } from '../../types/db';
 
 export default function SchoolConfigScreen() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+    const { themeMode, setThemeMode } = useThemeContext();
+
     const router = useRouter();
     const { user, role } = useAuth();
     const [loading, setLoading] = useState(true);
@@ -97,7 +103,7 @@ export default function SchoolConfigScreen() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.lilacBlue} />
+                <ActivityIndicator size="large" color={theme.lilacBlue} />
             </View>
         );
     }
@@ -106,19 +112,48 @@ export default function SchoolConfigScreen() {
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={Colors.white} />
+                    <Ionicons name="arrow-back" size={24} color={theme.white} />
                 </TouchableOpacity>
                 <Text style={styles.title}>School Settings</Text>
             </View>
 
             <View style={styles.section}>
+                <Text style={styles.sectionTitle}>App Appearance</Text>
+                <View style={styles.themeContainer}>
+                    {(['light', 'dark', 'system'] as const).map((mode) => (
+                        <TouchableOpacity
+                            key={mode}
+                            style={[
+                                styles.themeButton,
+                                themeMode === mode && styles.themeButtonSelected
+                            ]}
+                            onPress={() => setThemeMode(mode)}
+                        >
+                            <Ionicons 
+                                name={mode === 'light' ? 'sunny' : mode === 'dark' ? 'moon' : 'settings-outline'} 
+                                size={18} 
+                                color={themeMode === mode ? theme.white : theme.lilacBlue} 
+                            />
+                            <Text style={[
+                                styles.themeText,
+                                themeMode === mode && styles.themeTextSelected
+                            ]}>
+                                {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>School Configuration</Text>
                 <Text style={styles.label}>School Name</Text>
                 <TextInput
                     style={styles.input}
                     value={schoolName}
                     onChangeText={setSchoolName}
                     placeholder="Enter school name"
-                    placeholderTextColor={Colors.lilacBlue + '80'}
+                    placeholderTextColor={theme.lilacBlue + '80'}
                 />
             </View>
 
@@ -129,7 +164,7 @@ export default function SchoolConfigScreen() {
                     value={startTime}
                     onChangeText={setStartTime}
                     placeholder="08:00"
-                    placeholderTextColor={Colors.lilacBlue + '80'}
+                    placeholderTextColor={theme.lilacBlue + '80'}
                 />
             </View>
 
@@ -164,7 +199,7 @@ export default function SchoolConfigScreen() {
                     onChangeText={setLatitude}
                     keyboardType="numeric"
                     placeholder="14.5995"
-                    placeholderTextColor={Colors.lilacBlue + '80'}
+                    placeholderTextColor={theme.lilacBlue + '80'}
                 />
 
                 <Text style={styles.label}>Longitude</Text>
@@ -174,7 +209,7 @@ export default function SchoolConfigScreen() {
                     onChangeText={setLongitude}
                     keyboardType="numeric"
                     placeholder="120.9842"
-                    placeholderTextColor={Colors.lilacBlue + '80'}
+                    placeholderTextColor={theme.lilacBlue + '80'}
                 />
 
                 <Text style={styles.label}>Radius (meters)</Text>
@@ -184,13 +219,13 @@ export default function SchoolConfigScreen() {
                     onChangeText={setRadius}
                     keyboardType="numeric"
                     placeholder="200"
-                    placeholderTextColor={Colors.lilacBlue + '80'}
+                    placeholderTextColor={theme.lilacBlue + '80'}
                 />
             </View>
 
             <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={saving}>
                 {saving ? (
-                    <ActivityIndicator color={Colors.white} />
+                    <ActivityIndicator color={theme.white} />
                 ) : (
                     <Text style={styles.saveButtonText}>Save Settings</Text>
                 )}
@@ -199,14 +234,15 @@ export default function SchoolConfigScreen() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.background,
     },
     loadingContainer: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.background,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -225,7 +261,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.text,
     },
     section: {
         marginBottom: 24,
@@ -233,23 +269,23 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.text,
         marginBottom: 16,
         marginTop: 8,
     },
     label: {
         fontSize: 14,
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         marginBottom: 8,
         fontWeight: '600',
     },
     input: {
-        backgroundColor: Colors.deepSea,
+        backgroundColor: theme.card,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
         borderRadius: 12,
         padding: 16,
-        color: Colors.white,
+        color: theme.text,
         fontSize: 16,
         marginBottom: 12,
     },
@@ -263,25 +299,54 @@ const styles = StyleSheet.create({
         height: 45,
         borderRadius: 25,
         borderWidth: 1,
-        borderColor: Colors.sailingBlue,
+        borderColor: theme.sailingBlue,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: Colors.deepSea,
+        backgroundColor: theme.card,
     },
     dayButtonSelected: {
-        backgroundColor: Colors.solidBlue,
-        borderColor: Colors.lilacBlue,
+        backgroundColor: theme.solidBlue,
+        borderColor: theme.lilacBlue,
     },
     dayText: {
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         fontSize: 12,
         fontWeight: 'bold',
     },
     dayTextSelected: {
-        color: Colors.white,
+        color: theme.white,
+    },
+    themeContainer: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 10,
+    },
+    themeButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        height: 48,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: theme.sailingBlue,
+        backgroundColor: theme.card,
+    },
+    themeButtonSelected: {
+        backgroundColor: theme.solidBlue,
+        borderColor: theme.lilacBlue,
+    },
+    themeText: {
+        color: theme.lilacBlue,
+        fontSize: 14,
+        fontWeight: 'bold',
+    },
+    themeTextSelected: {
+        color: theme.white,
     },
     saveButton: {
-        backgroundColor: Colors.solidBlue,
+        backgroundColor: theme.solidBlue,
         height: 56,
         borderRadius: 16,
         justifyContent: 'center',
@@ -290,8 +355,9 @@ const styles = StyleSheet.create({
         marginBottom: 40,
     },
     saveButtonText: {
-        color: Colors.white,
+        color: theme.white,
         fontSize: 18,
         fontWeight: 'bold',
     },
-});
+    });
+}

@@ -1,10 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../../constants/Colors';
+import { useAppTheme } from '../../hooks/useAppTheme';
+import { ColorTheme } from '../../constants/Colors';
 import { useAuth } from '../../ctx/AuthContext';
 
 export default function ParentDashboard() {
+    const theme = useAppTheme();
+    const styles = getStyles(theme);
+
     const { signOut, user } = useAuth();
     const router = useRouter();
 
@@ -12,7 +16,7 @@ export default function ParentDashboard() {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Parent Portal</Text>
-                <Ionicons name="log-out-outline" size={24} color={Colors.white} onPress={signOut} />
+                <Ionicons name="log-out-outline" size={24} color={theme.white} onPress={signOut} />
             </View>
             <View style={styles.content}>
                 <Text style={styles.welcomeText}>Welcome, Parent!</Text>
@@ -23,7 +27,7 @@ export default function ParentDashboard() {
                         style={styles.menuItem}
                         onPress={() => router.push('/(parent)/map' as any)}
                     >
-                        <Ionicons name="map" size={32} color={Colors.white} />
+                        <Ionicons name="map" size={32} color={theme.white} />
                         <Text style={styles.menuText}>Track Child</Text>
                     </TouchableOpacity>
 
@@ -31,7 +35,7 @@ export default function ParentDashboard() {
                         style={styles.menuItem}
                         onPress={() => router.push('/(parent)/child-status' as any)}
                     >
-                        <Ionicons name="clipboard" size={32} color={Colors.white} />
+                        <Ionicons name="clipboard" size={32} color={theme.white} />
                         <Text style={styles.menuText}>Attendance & Letters</Text>
                     </TouchableOpacity>
                 </View>
@@ -40,10 +44,11 @@ export default function ParentDashboard() {
     );
 }
 
-const styles = StyleSheet.create({
+function getStyles(theme: ColorTheme) {
+    return StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: Colors.nightTime,
+        backgroundColor: theme.nightTime,
         padding: 20,
         paddingTop: 60,
     },
@@ -56,7 +61,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 28,
         fontWeight: 'bold',
-        color: Colors.white,
+        color: theme.white,
     },
     content: {
         flex: 1,
@@ -66,12 +71,12 @@ const styles = StyleSheet.create({
     },
     welcomeText: {
         fontSize: 24,
-        color: Colors.white,
+        color: theme.white,
         marginBottom: 10,
     },
     emailText: {
         fontSize: 16,
-        color: Colors.lilacBlue,
+        color: theme.lilacBlue,
         marginBottom: 40,
     },
     menuContainer: {
@@ -82,7 +87,7 @@ const styles = StyleSheet.create({
         gap: 20,
     },
     menuItem: {
-        backgroundColor: Colors.solidBlue,
+        backgroundColor: theme.solidBlue,
         width: 140,
         height: 140,
         borderRadius: 20,
@@ -96,9 +101,10 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
     },
     menuText: {
-        color: Colors.white,
+        color: theme.white,
         marginTop: 10,
         fontWeight: 'bold',
         fontSize: 16,
     }
-});
+    });
+}
