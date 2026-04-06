@@ -72,6 +72,7 @@ export default function SignUpScreen() {
                 role: role,
                 fullName: fullName,
                 createdAt: today,
+                status: 'pending',
             };
 
             if (role === 'student') {

@@ -16,9 +16,24 @@ export default function TabLayout() {
             }}
         >
             <Tabs.Screen
+                name="index"
                 options={{
                     title: 'Home',
                     tabBarIcon: ({ color }) => <Ionicons name="home" size={24} color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="users"
+                options={{
+                    title: 'Users',
+                    tabBarIcon: ({ color }) => <Ionicons name="people" size={24} color={color} />,
+                }}
+            />
+            <Tabs.Screen
+                name="teachers"
+                options={{
+                    title: 'Teachers',
+                    tabBarIcon: ({ color }) => <Ionicons name="school" size={24} color={color} />,
                 }}
             />
             <Tabs.Screen
@@ -28,7 +43,6 @@ export default function TabLayout() {
                     tabBarIcon: ({ color }) => <Ionicons name="settings-outline" size={24} color={color} />,
                 }}
             />
-            {/* Add more tabs here later */}
         </Tabs>
     );
 }

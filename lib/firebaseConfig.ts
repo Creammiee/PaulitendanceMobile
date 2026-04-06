@@ -29,3 +29,7 @@ export const analytics =
 
 import { getAuth } from "firebase/auth";
 export const auth = getAuth(firebaseApp);
+
+// Secondary App for Admin usage (creating users without logging out the admin)
+export const secondaryFirebaseApp = initializeApp(firebaseConfig, "Secondary");
+export const secondaryAuth = getAuth(secondaryFirebaseApp);

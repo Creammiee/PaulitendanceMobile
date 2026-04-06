@@ -6,6 +6,7 @@ export interface UserProfile {
     role: UserRole;
     fullName: string;
     createdAt: Date;
+    status?: 'pending' | 'active' | 'rejected';
     deviceToken?: string | null;
     // Relationships
     studentIds?: string[]; // For parents and teachers (assigned students)

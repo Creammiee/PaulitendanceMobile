@@ -9,10 +9,10 @@ import { UserRole } from '../types/db';
 
 export type { UserRole };
 
-// Context to expose auth state throughout the app
 interface AuthContextProps {
     user: User | null;
     role: UserRole;
+    status: 'pending' | 'active' | 'rejected' | null;
     loading: boolean;
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string, role: string, fullName: string) => Promise<void>;
@@ -24,6 +24,7 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [role, setRole] = useState<UserRole>(null);
+    const [status, setStatus] = useState<'pending' | 'active' | 'rejected' | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Helper to store the current device's expo push token in Firestore
@@ -45,38 +46,52 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const fetchUserRole = async (uid: string) => {
-        // Try to find the user in all possible collections
+        // Try to find the user in the unified collection first
+        const userDoc = await getDoc(doc(db, 'users', uid));
+        if (userDoc.exists()) {
+            const data = userDoc.data();
+            setRole(data.role || null);
+            setStatus(data.status || 'active'); // legacy users default to active
+            return { role: data.role, status: data.status || 'active' };
+        }
+
+        // Try to find the user in legacy collections
         // Check Students
         const studentDoc = await getDoc(doc(db, 'students', uid));
         if (studentDoc.exists()) {
             setRole('student');
-            return 'student';
+            setStatus('active');
+            return { role: 'student', status: 'active' };
         }
 
         // Check Teachers
         const teacherDoc = await getDoc(doc(db, 'teachers', uid));
         if (teacherDoc.exists()) {
             setRole('teacher');
-            return 'teacher';
+            setStatus('active');
+            return { role: 'teacher', status: 'active' };
         }
 
         // Check Parents
         const parentDoc = await getDoc(doc(db, 'parents', uid));
         if (parentDoc.exists()) {
             setRole('parent');
-            return 'parent';
+            setStatus('active');
+            return { role: 'parent', status: 'active' };
         }
 
         // Check Admins
         const adminDoc = await getDoc(doc(db, 'admins', uid));
         if (adminDoc.exists()) {
             setRole('admin');
-            return 'admin';
+            setStatus('active');
+            return { role: 'admin', status: 'active' };
         }
 
         // If not found in any (e.g. legacy or error)
         setRole(null);
-        return null;
+        setStatus(null);
+        return { role: null, status: null };
     };
 
     // Sign‑in flow with single‑device enforcement
@@ -84,8 +99,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const credential = await signInWithEmailAndPassword(auth, email, password);
         const uid = credential.user.uid;
 
-        // Fetch role immediately (searches all collections)
-        const foundRole = await fetchUserRole(uid);
+        // Fetch role and status immediately
+        const found = await fetchUserRole(uid);
+        const foundRole = found.role;
 
         if (!foundRole) {
             console.warn("User logged in but no profile found in any collection.");
@@ -143,6 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const newRole = role as UserRole
         setRole(newRole);
+        setStatus('pending');
         await registerDeviceToken(uid, newRole);
         await SecureStore.setItemAsync('uid', uid);
     };
@@ -162,6 +179,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
         await firebaseSignOut(auth);
         setRole(null);
+        setStatus(null);
         setUser(null);
     };
 
@@ -172,12 +190,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 setUser(usr);
                 const r = await fetchUserRole(usr.uid);
                 // Ensure device token is registered when the user is already logged in (e.g., app restart)
-                if (r) {
-                    await registerDeviceToken(usr.uid, r as UserRole);
+                if (r.role) {
+                    await registerDeviceToken(usr.uid, r.role as UserRole);
                 }
             } else {
                 setUser(null);
                 setRole(null);
+                setStatus(null);
             }
             setLoading(false);
         });
@@ -185,7 +204,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ user, role, loading, signIn, signUp, signOut }}>
+        <AuthContext.Provider value={{ user, role, status, loading, signIn, signUp, signOut }}>
             {children}
         </AuthContext.Provider>
     );

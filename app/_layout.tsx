@@ -15,7 +15,7 @@ export const unstable_settings = {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  const { user, role, loading } = useAuth();
+  const { user, role, status, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
@@ -28,9 +28,16 @@ function RootLayoutNav() {
 
     if (!user && !inPublic) {
       router.replace('/sign-in');
-    } else if (user && role) {
+    } else if (user) {
       
       const currentSegment = segments[0];
+
+      if (status === 'pending') {
+        if (currentSegment !== 'pending') {
+            router.replace('/pending' as any);
+        }
+        return;
+      }
 
       if (role === 'admin' && currentSegment !== '(admin)') {
         router.replace('/(admin)');
@@ -41,8 +48,6 @@ function RootLayoutNav() {
       } else if (role === 'teacher' && currentSegment !== '(teacher)') {
         router.replace('/(teacher)' as any);
       }
-    } else if (user && !role && !inPublic) {
-    
     }
   }, [user, role, loading, segments]);
 
@@ -63,6 +68,7 @@ function RootLayoutNav() {
         <Stack.Screen name={"(teacher)" as any} options={{ headerShown: false }} />
         <Stack.Screen name="sign-in" options={{ headerShown: false }} />
         <Stack.Screen name="sign-up" options={{ headerShown: false }} />
+        <Stack.Screen name="pending" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
